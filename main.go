@@ -57,10 +57,7 @@ func run(cmd *cobra.Command, args []string) error {
 	repoPaths := args[1:]
 
 	// Get flags
-	outputFile, err := cmd.Flags().GetString("output")
-	if err != nil {
-		return fmt.Errorf("failed to get output flag: %w", err)
-	}
+	outputFile, _ := cmd.Flags().GetString("output")
 
 	// Validate and deduplicate repository paths
 	uniqueRepos, err := git.DeduplicateRepoPaths(repoPaths)
