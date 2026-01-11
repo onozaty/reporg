@@ -7,15 +7,27 @@ import (
 	"testing"
 )
 
+// initTestRepo initializes a Git repository with an initial commit
+func initTestRepo(t *testing.T, dir string) {
+	t.Helper()
+
+	exec.Command("git", "-C", dir, "init").Run()
+	exec.Command("git", "-C", dir, "config", "user.email", "test@example.com").Run()
+	exec.Command("git", "-C", dir, "config", "user.name", "Test User").Run()
+
+	// Create initial commit (required for git rev-parse on macOS)
+	readmePath := filepath.Join(dir, "README.md")
+	os.WriteFile(readmePath, []byte("test\n"), 0644)
+	exec.Command("git", "-C", dir, "add", "README.md").Run()
+	exec.Command("git", "-C", dir, "commit", "-m", "Initial commit").Run()
+}
+
 func TestValidateRepoRoot_ValidRepository(t *testing.T) {
 	// Create temporary directory for Git repository
 	tmpDir := t.TempDir()
 
-	// Initialize Git repository
-	cmd := exec.Command("git", "-C", tmpDir, "init")
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to init git repo: %v", err)
-	}
+	// Initialize Git repository with initial commit
+	initTestRepo(t, tmpDir)
 
 	// Test ValidateRepoRoot - should succeed
 	err := ValidateRepoRoot(tmpDir)
@@ -28,11 +40,8 @@ func TestValidateRepoRoot_Subdirectory(t *testing.T) {
 	// Create temporary directory for Git repository
 	tmpDir := t.TempDir()
 
-	// Initialize Git repository
-	cmd := exec.Command("git", "-C", tmpDir, "init")
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to init git repo: %v", err)
-	}
+	// Initialize Git repository with initial commit
+	initTestRepo(t, tmpDir)
 
 	// Create subdirectory
 	subDir := filepath.Join(tmpDir, "subdir")
@@ -62,37 +71,8 @@ func TestGetCurrentBranch_RepositoryWithBranch(t *testing.T) {
 	// Create temporary directory for Git repository
 	tmpDir := t.TempDir()
 
-	// Initialize Git repository
-	cmd := exec.Command("git", "-C", tmpDir, "init")
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to init git repo: %v", err)
-	}
-
-	// Create initial commit (required to have a branch)
-	testFile := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
-		t.Fatalf("Failed to write test file: %v", err)
-	}
-
-	cmd = exec.Command("git", "-C", tmpDir, "add", "test.txt")
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to add file: %v", err)
-	}
-
-	cmd = exec.Command("git", "-C", tmpDir, "config", "user.email", "test@example.com")
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to set user.email: %v", err)
-	}
-
-	cmd = exec.Command("git", "-C", tmpDir, "config", "user.name", "Test User")
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to set user.name: %v", err)
-	}
-
-	cmd = exec.Command("git", "-C", tmpDir, "commit", "-m", "initial commit")
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to commit: %v", err)
-	}
+	// Initialize Git repository with initial commit
+	initTestRepo(t, tmpDir)
 
 	// Test GetCurrentBranch
 	branch, err := GetCurrentBranch(tmpDir)
@@ -110,40 +90,11 @@ func TestGetCurrentBranch_CustomBranch(t *testing.T) {
 	// Create temporary directory for Git repository
 	tmpDir := t.TempDir()
 
-	// Initialize Git repository
-	cmd := exec.Command("git", "-C", tmpDir, "init")
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to init git repo: %v", err)
-	}
-
-	// Create initial commit (required to have a branch)
-	testFile := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
-		t.Fatalf("Failed to write test file: %v", err)
-	}
-
-	cmd = exec.Command("git", "-C", tmpDir, "add", "test.txt")
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to add file: %v", err)
-	}
-
-	cmd = exec.Command("git", "-C", tmpDir, "config", "user.email", "test@example.com")
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to set user.email: %v", err)
-	}
-
-	cmd = exec.Command("git", "-C", tmpDir, "config", "user.name", "Test User")
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to set user.name: %v", err)
-	}
-
-	cmd = exec.Command("git", "-C", tmpDir, "commit", "-m", "initial commit")
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to commit: %v", err)
-	}
+	// Initialize Git repository with initial commit
+	initTestRepo(t, tmpDir)
 
 	// Create and checkout custom branch
-	cmd = exec.Command("git", "-C", tmpDir, "checkout", "-b", "develop")
+	cmd := exec.Command("git", "-C", tmpDir, "checkout", "-b", "develop")
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("Failed to create branch: %v", err)
 	}
@@ -163,11 +114,8 @@ func TestDeduplicateRepoPaths_SingleRepository(t *testing.T) {
 	// Create temporary directory for Git repository
 	tmpDir := t.TempDir()
 
-	// Initialize Git repository
-	cmd := exec.Command("git", "-C", tmpDir, "init")
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to init git repo: %v", err)
-	}
+	// Initialize Git repository with initial commit
+	initTestRepo(t, tmpDir)
 
 	// Test DeduplicateRepoPaths
 	paths := []string{tmpDir}
@@ -185,11 +133,8 @@ func TestDeduplicateRepoPaths_Duplicate(t *testing.T) {
 	// Create temporary directory for Git repository
 	tmpDir := t.TempDir()
 
-	// Initialize Git repository
-	cmd := exec.Command("git", "-C", tmpDir, "init")
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to init git repo: %v", err)
-	}
+	// Initialize Git repository with initial commit
+	initTestRepo(t, tmpDir)
 
 	// Test DeduplicateRepoPaths with duplicates
 	paths := []string{tmpDir, tmpDir, tmpDir}
@@ -208,16 +153,9 @@ func TestDeduplicateRepoPaths_MultipleDifferent(t *testing.T) {
 	tmpDir1 := t.TempDir()
 	tmpDir2 := t.TempDir()
 
-	// Initialize Git repositories
-	cmd := exec.Command("git", "-C", tmpDir1, "init")
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to init git repo 1: %v", err)
-	}
-
-	cmd = exec.Command("git", "-C", tmpDir2, "init")
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to init git repo 2: %v", err)
-	}
+	// Initialize Git repositories with initial commits
+	initTestRepo(t, tmpDir1)
+	initTestRepo(t, tmpDir2)
 
 	// Test DeduplicateRepoPaths with different repos
 	paths := []string{tmpDir1, tmpDir2}
@@ -246,10 +184,7 @@ func TestDeduplicateRepoPaths_InvalidRepository(t *testing.T) {
 func TestDeduplicateRepoPaths_MixedValidInvalid(t *testing.T) {
 	// Create one valid Git repository
 	validRepo := t.TempDir()
-	cmd := exec.Command("git", "-C", validRepo, "init")
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to init git repo: %v", err)
-	}
+	initTestRepo(t, validRepo)
 
 	// Create one invalid directory
 	invalidRepo := t.TempDir()

@@ -18,6 +18,12 @@ func setupTestRepo(t *testing.T, remoteURL string) string {
 	exec.Command("git", "-C", tmpDir, "config", "user.email", "test@example.com").Run()
 	exec.Command("git", "-C", tmpDir, "config", "user.name", "Test User").Run()
 
+	// Create initial commit to establish the repository
+	readmePath := filepath.Join(tmpDir, "README.md")
+	os.WriteFile(readmePath, []byte("# Test Repository\n"), 0644)
+	exec.Command("git", "-C", tmpDir, "add", "README.md").Run()
+	exec.Command("git", "-C", tmpDir, "commit", "-m", "Initial commit").Run()
+
 	return tmpDir
 }
 
