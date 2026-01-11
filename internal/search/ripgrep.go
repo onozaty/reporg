@@ -42,7 +42,7 @@ type TextData struct {
 func SearchRepo(pattern, repoRoot string) ([]Match, error) {
 	// Check if ripgrep is installed
 	if _, err := exec.LookPath("rg"); err != nil {
-		return nil, fmt.Errorf("ripgrep not found: please install ripgrep")
+		return nil, fmt.Errorf("ripgrep not found: please install ripgrep from https://github.com/BurntSushi/ripgrep#installation")
 	}
 
 	// Execute: rg --json <pattern> <repoRoot>
