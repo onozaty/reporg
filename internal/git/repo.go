@@ -10,12 +10,6 @@ import (
 // ValidateRepoRoot validates that the given path is a Git repository root.
 // It returns an error if the path is not a Git repository or is a subdirectory.
 func ValidateRepoRoot(path string) error {
-	// Get absolute path for comparison
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		return fmt.Errorf("failed to get absolute path: %w", err)
-	}
-
 	// Execute: git -C <path> rev-parse --show-toplevel
 	cmd := exec.Command("git", "-C", path, "rev-parse", "--show-toplevel")
 	output, err := cmd.Output()
@@ -26,8 +20,21 @@ func ValidateRepoRoot(path string) error {
 	// Get the repository root from git output
 	repoRoot := strings.TrimSpace(string(output))
 
-	// Compare with the input path (must be exact match)
-	absRepoRoot, err := filepath.Abs(repoRoot)
+	// Get canonical paths using EvalSymlinks to handle macOS /private prefix
+	canonicalPath, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return fmt.Errorf("failed to resolve path: %w", err)
+	}
+	absPath, err := filepath.Abs(canonicalPath)
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path: %w", err)
+	}
+
+	canonicalRepoRoot, err := filepath.EvalSymlinks(repoRoot)
+	if err != nil {
+		return fmt.Errorf("failed to resolve repo root: %w", err)
+	}
+	absRepoRoot, err := filepath.Abs(canonicalRepoRoot)
 	if err != nil {
 		return fmt.Errorf("failed to get absolute path for repo root: %w", err)
 	}
