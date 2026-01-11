@@ -90,11 +90,14 @@ func SearchRepo(pattern, repoRoot string) ([]Match, error) {
 			relPath = absPath // Fall back to absolute path if conversion fails
 		}
 
-		// Extract line text (skip if not UTF-8 text)
-		if matchData.Lines.Text == nil {
-			continue
+		// Extract line text (use empty string if text field is not present)
+		// Note: ripgrep uses "text" field for UTF-8 content and "bytes" field for non-UTF-8.
+		// This implementation only handles the "text" field. If ripgrep outputs "bytes" instead,
+		// the line text will be empty.
+		lineText := ""
+		if matchData.Lines.Text != nil {
+			lineText = *matchData.Lines.Text
 		}
-		lineText := *matchData.Lines.Text
 
 		matches = append(matches, Match{
 			RelPath:    relPath,

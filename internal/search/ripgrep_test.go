@@ -455,3 +455,4 @@ func TestFullRipgrepJSONParsing(t *testing.T) {
 		t.Errorf("LineNumber = %v, want 1", matchData.LineNumber)
 	}
 }
+
