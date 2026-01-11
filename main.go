@@ -10,6 +10,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	Version = "dev"
+	Commit  = "dev"
+)
+
 // RepoContext contains information about a Git repository needed for generating URLs.
 type RepoContext struct {
 	Root   string // Absolute path to repository root
@@ -21,13 +26,19 @@ type RepoContext struct {
 var rootCmd = newRootCmd()
 
 func newRootCmd() *cobra.Command {
+	versionInfo := Version
+	if Commit != "dev" {
+		versionInfo = fmt.Sprintf("%s (commit: %s)", Version, Commit)
+	}
+
 	cmd := &cobra.Command{
 		Use:   "reporg <pattern> <repoRoot1> [repoRoot2...]",
 		Short: "Search git repositories with ripgrep and generate shareable references",
 		Long: `reporg searches Git repositories using ripgrep and outputs results in TSV format.
 Each result includes the local file path, matched line content, and GitHub URL reference.`,
-		Args: cobra.MinimumNArgs(2),
-		RunE: run,
+		Version: versionInfo,
+		Args:    cobra.MinimumNArgs(2),
+		RunE:    run,
 	}
 
 	cmd.Flags().StringP("output", "o", "", "Output file path (default: stdout)")
