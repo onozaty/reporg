@@ -40,8 +40,8 @@ brew install ripgrep
 # Ubuntu/Debian
 sudo apt-get install ripgrep
 
-# Windows (Chocolatey)
-choco install ripgrep
+# Windows (Scoop)
+scoop install ripgrep
 ```
 
 For more details, see the [ripgrep installation guide](https://github.com/BurntSushi/ripgrep#installation).
