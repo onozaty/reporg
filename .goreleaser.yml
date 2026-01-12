@@ -36,3 +36,15 @@ changelog:
     exclude:
       - '^docs:'
       - '^test:'
+homebrew_casks:
+  - name: reporg
+    repository:
+      owner: onozaty
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    description: "CLI tool that searches Git repositories using ripgrep and outputs results in TSV format"
+    homepage: "https://github.com/onozaty/reporg"
+    license: MIT
+    skip_upload: auto
+    dependencies:
+      - formula: ripgrep

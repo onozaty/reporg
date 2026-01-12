@@ -19,6 +19,12 @@ English | [日本語](README.ja.md)
 
 ## Installation
 
+### Homebrew (macOS/Linux)
+
+```bash
+brew install onozaty/tap/reporg
+```
+
 ### Go install
 
 ```bash

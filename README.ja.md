@@ -19,6 +19,12 @@
 
 ## インストール
 
+### Homebrew (macOS/Linux)
+
+```bash
+brew install onozaty/tap/reporg
+```
+
 ### Go install
 
 ```bash
