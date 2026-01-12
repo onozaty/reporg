@@ -42,6 +42,10 @@ Each result includes the local file path, matched line content, and GitHub URL r
 	}
 
 	cmd.Flags().StringP("output", "o", "", "Output file path (default: stdout)")
+	cmd.Flags().BoolP("ignore-case", "i", false, "Case-insensitive search")
+	cmd.Flags().StringSliceP("glob", "g", nil, "Include or exclude files matching glob pattern (can be specified multiple times)")
+	cmd.Flags().Bool("hidden", false, "Search hidden files and directories")
+	cmd.Flags().BoolP("fixed-strings", "F", false, "Treat pattern as literal string, not regex")
 
 	return cmd
 }
@@ -58,6 +62,10 @@ func run(cmd *cobra.Command, args []string) error {
 
 	// Get flags
 	outputFile, _ := cmd.Flags().GetString("output")
+	ignoreCase, _ := cmd.Flags().GetBool("ignore-case")
+	globs, _ := cmd.Flags().GetStringSlice("glob")
+	hidden, _ := cmd.Flags().GetBool("hidden")
+	fixedStrings, _ := cmd.Flags().GetBool("fixed-strings")
 
 	// Validate and deduplicate repository paths
 	uniqueRepos, err := git.DeduplicateRepoPaths(repoPaths)
@@ -75,8 +83,16 @@ func run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to get repository context for %s: %w", repoRoot, err)
 		}
 
+		// Create search options
+		searchOpts := search.SearchOptions{
+			IgnoreCase:   ignoreCase,
+			Globs:        globs,
+			Hidden:       hidden,
+			FixedStrings: fixedStrings,
+		}
+
 		// Execute search
-		matches, err := search.SearchRepo(pattern, repoRoot)
+		matches, err := search.SearchRepo(pattern, repoRoot, searchOpts)
 		if err != nil {
 			return fmt.Errorf("search failed in %s: %w", repoRoot, err)
 		}

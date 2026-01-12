@@ -237,3 +237,150 @@ func TestRun_MultipleRepositories(t *testing.T) {
 		t.Error("Output should contain repository name 'test/repo2'")
 	}
 }
+
+func TestRun_IgnoreCaseFlag(t *testing.T) {
+	tmpDir := setupTestRepo(t, "https://github.com/test/repo.git")
+	commitFile(t, tmpDir, "test.txt", "PATTERN here\n")
+
+	outputFile := filepath.Join(tmpDir, "output.tsv")
+
+	// Without -i
+	cmd := newRootCmd()
+	cmd.SetArgs([]string{"pattern", tmpDir, "-o", outputFile})
+	err := cmd.Execute()
+	if err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+
+	content, _ := os.ReadFile(outputFile)
+	if len(content) != 0 {
+		t.Error("Expected no matches without -i flag")
+	}
+
+	// With -i
+	os.Remove(outputFile)
+	cmd = newRootCmd()
+	cmd.SetArgs([]string{"-i", "pattern", tmpDir, "-o", outputFile})
+	err = cmd.Execute()
+	if err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+
+	content, _ = os.ReadFile(outputFile)
+	if len(content) == 0 {
+		t.Error("Expected matches with -i flag")
+	}
+}
+
+func TestRun_FixedStringsFlag(t *testing.T) {
+	tmpDir := setupTestRepo(t, "https://github.com/test/repo.git")
+	commitFile(t, tmpDir, "test.go", "func main() {}\n")
+
+	outputFile := filepath.Join(tmpDir, "output.tsv")
+
+	// With -F flag
+	cmd := newRootCmd()
+	cmd.SetArgs([]string{"-F", "main()", tmpDir, "-o", outputFile})
+	err := cmd.Execute()
+	if err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+
+	content, _ := os.ReadFile(outputFile)
+	if len(content) == 0 {
+		t.Error("Expected matches with -F flag")
+	}
+}
+
+func TestRun_GlobFlag(t *testing.T) {
+	tmpDir := setupTestRepo(t, "https://github.com/test/repo.git")
+	commitFile(t, tmpDir, "test.go", "package main\n")
+	commitFile(t, tmpDir, "test.txt", "package test\n")
+
+	outputFile := filepath.Join(tmpDir, "output.tsv")
+
+	// Test with --glob to only search .go files
+	cmd := newRootCmd()
+	cmd.SetArgs([]string{"package", tmpDir, "-g", "*.go", "-o", outputFile})
+	err := cmd.Execute()
+	if err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+
+	content, _ := os.ReadFile(outputFile)
+	output := string(content)
+
+	if !strings.Contains(output, "test.go") {
+		t.Error("Expected test.go in results")
+	}
+
+	if strings.Contains(output, "test.txt") {
+		t.Error("Did not expect test.txt in results")
+	}
+}
+
+func TestRun_HiddenFlag(t *testing.T) {
+	tmpDir := setupTestRepo(t, "https://github.com/test/repo.git")
+
+	// Create hidden file
+	hiddenPath := filepath.Join(tmpDir, ".hidden")
+	os.WriteFile(hiddenPath, []byte("secret\n"), 0644)
+	exec.Command("git", "-C", tmpDir, "add", "-f", ".hidden").Run()
+	exec.Command("git", "-C", tmpDir, "commit", "-m", "Add hidden file").Run()
+
+	outputFile := filepath.Join(tmpDir, "output.tsv")
+
+	// Test without --hidden (should not find)
+	cmd := newRootCmd()
+	cmd.SetArgs([]string{"secret", tmpDir, "-o", outputFile})
+	err := cmd.Execute()
+	if err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+
+	content, _ := os.ReadFile(outputFile)
+	if len(content) != 0 {
+		t.Error("Expected no matches without --hidden flag")
+	}
+
+	// Test with --hidden (should find)
+	os.Remove(outputFile)
+	cmd = newRootCmd()
+	cmd.SetArgs([]string{"secret", tmpDir, "--hidden", "-o", outputFile})
+	err = cmd.Execute()
+	if err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+
+	content, _ = os.ReadFile(outputFile)
+	if len(content) == 0 {
+		t.Error("Expected matches with --hidden flag")
+	}
+}
+
+func TestRun_MultipleGlobFlags(t *testing.T) {
+	tmpDir := setupTestRepo(t, "https://github.com/test/repo.git")
+	commitFile(t, tmpDir, "main.go", "package main\n")
+	commitFile(t, tmpDir, "main_test.go", "package main\n")
+
+	outputFile := filepath.Join(tmpDir, "output.tsv")
+
+	// Test with multiple --glob flags
+	cmd := newRootCmd()
+	cmd.SetArgs([]string{"package", tmpDir, "-g", "*.go", "-g", "!*_test.go", "-o", outputFile})
+	err := cmd.Execute()
+	if err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+
+	content, _ := os.ReadFile(outputFile)
+	output := string(content)
+
+	if !strings.Contains(output, "main.go") {
+		t.Error("Expected main.go in results")
+	}
+
+	if strings.Contains(output, "main_test.go") {
+		t.Error("Did not expect main_test.go in results")
+	}
+}

@@ -38,15 +38,49 @@ type TextData struct {
 	Text *string `json:"text,omitempty"`
 }
 
+// SearchOptions contains optional parameters for ripgrep search.
+type SearchOptions struct {
+	IgnoreCase   bool     // Enable case-insensitive search (-i)
+	Globs        []string // Glob patterns to filter files (--glob)
+	Hidden       bool     // Search hidden files and directories (--hidden)
+	FixedStrings bool     // Treat pattern as literal string, not regex (-F)
+}
+
 // SearchRepo executes ripgrep search on the given repository and returns all matches.
-func SearchRepo(pattern, repoRoot string) ([]Match, error) {
+func SearchRepo(pattern, repoRoot string, opts SearchOptions) ([]Match, error) {
 	// Check if ripgrep is installed
 	if _, err := exec.LookPath("rg"); err != nil {
 		return nil, fmt.Errorf("ripgrep not found: please install ripgrep from https://github.com/BurntSushi/ripgrep#installation")
 	}
 
-	// Execute: rg --json <pattern> <repoRoot>
-	cmd := exec.Command("rg", "--json", pattern, repoRoot)
+	// Build ripgrep arguments
+	args := []string{"--json"}
+
+	// Add case-insensitive flag if requested
+	if opts.IgnoreCase {
+		args = append(args, "-i")
+	}
+
+	// Add glob patterns if specified
+	for _, glob := range opts.Globs {
+		args = append(args, "--glob", glob)
+	}
+
+	// Add hidden flag if requested
+	if opts.Hidden {
+		args = append(args, "--hidden")
+	}
+
+	// Add fixed-strings flag if requested
+	if opts.FixedStrings {
+		args = append(args, "-F")
+	}
+
+	// Add pattern and path
+	args = append(args, pattern, repoRoot)
+
+	// Execute: rg --json [options] <pattern> <repoRoot>
+	cmd := exec.Command("rg", args...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create stdout pipe: %w", err)

@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -24,7 +25,7 @@ func TestSearchRepo_WithMatches(t *testing.T) {
 	}
 
 	// Test SearchRepo with pattern "package"
-	matches, err := SearchRepo("package", tmpDir)
+	matches, err := SearchRepo("package", tmpDir, SearchOptions{})
 	if err != nil {
 		t.Fatalf("SearchRepo() error = %v, want nil", err)
 	}
@@ -58,7 +59,7 @@ func TestSearchRepo_NoMatches(t *testing.T) {
 	}
 
 	// Test SearchRepo with pattern that won't match
-	matches, err := SearchRepo("nonexistent_pattern_xyz", tmpDir)
+	matches, err := SearchRepo("nonexistent_pattern_xyz", tmpDir, SearchOptions{})
 	if err != nil {
 		t.Fatalf("SearchRepo() error = %v, want nil", err)
 	}
@@ -74,7 +75,7 @@ func TestSearchRepo_EmptyDirectory(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Test SearchRepo on empty directory
-	matches, err := SearchRepo("package", tmpDir)
+	matches, err := SearchRepo("package", tmpDir, SearchOptions{})
 	if err != nil {
 		t.Fatalf("SearchRepo() error = %v, want nil", err)
 	}
@@ -104,7 +105,7 @@ func main() {
 	}
 
 	// Test SearchRepo with pattern "package"
-	matches, err := SearchRepo("package", tmpDir)
+	matches, err := SearchRepo("package", tmpDir, SearchOptions{})
 	if err != nil {
 		t.Fatalf("SearchRepo() error = %v, want nil", err)
 	}
@@ -138,7 +139,7 @@ func TestSearchRepo_RelativePath(t *testing.T) {
 	}
 
 	// Test SearchRepo
-	matches, err := SearchRepo("package", tmpDir)
+	matches, err := SearchRepo("package", tmpDir, SearchOptions{})
 	if err != nil {
 		t.Fatalf("SearchRepo() error = %v, want nil", err)
 	}
@@ -165,7 +166,7 @@ func TestSearchRepo_UTF8Content(t *testing.T) {
 	}
 
 	// Test SearchRepo with Japanese pattern
-	matches, err := SearchRepo("日本語", tmpDir)
+	matches, err := SearchRepo("日本語", tmpDir, SearchOptions{})
 	if err != nil {
 		t.Fatalf("SearchRepo() error = %v, want nil", err)
 	}
@@ -192,7 +193,7 @@ func TestSearchRepo_InvalidPattern(t *testing.T) {
 	}
 
 	// Test SearchRepo with invalid regex pattern
-	_, err := SearchRepo("[invalid", tmpDir)
+	_, err := SearchRepo("[invalid", tmpDir, SearchOptions{})
 	if err == nil {
 		t.Error("SearchRepo() expected error for invalid pattern, got nil")
 	}
@@ -200,7 +201,7 @@ func TestSearchRepo_InvalidPattern(t *testing.T) {
 
 func TestSearchRepo_NonexistentDirectory(t *testing.T) {
 	// Test SearchRepo with non-existent directory
-	_, err := SearchRepo("package", "/nonexistent/directory/path")
+	_, err := SearchRepo("package", "/nonexistent/directory/path", SearchOptions{})
 	if err == nil {
 		t.Error("SearchRepo() expected error for non-existent directory, got nil")
 	}
@@ -453,6 +454,191 @@ func TestFullRipgrepJSONParsing(t *testing.T) {
 
 	if matchData.LineNumber != 1 {
 		t.Errorf("LineNumber = %v, want 1", matchData.LineNumber)
+	}
+}
+
+func TestSearchRepo_IgnoreCase(t *testing.T) {
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test.txt")
+	if err := os.WriteFile(testFile, []byte("PACKAGE main\n"), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	// Test case-sensitive (should not match)
+	matches, err := SearchRepo("package", tmpDir, SearchOptions{})
+	if err != nil {
+		t.Fatalf("SearchRepo() error = %v, want nil", err)
+	}
+	if len(matches) != 0 {
+		t.Errorf("Case-sensitive search found %d matches, want 0", len(matches))
+	}
+
+	// Test case-insensitive (should match)
+	matches, err = SearchRepo("package", tmpDir, SearchOptions{IgnoreCase: true})
+	if err != nil {
+		t.Fatalf("SearchRepo() error = %v, want nil", err)
+	}
+	if len(matches) != 1 {
+		t.Errorf("Case-insensitive search found %d matches, want 1", len(matches))
+	}
+}
+
+func TestSearchRepo_Glob_Include(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	goFile := filepath.Join(tmpDir, "test.go")
+	if err := os.WriteFile(goFile, []byte("package main\n"), 0644); err != nil {
+		t.Fatalf("Failed to write .go file: %v", err)
+	}
+
+	txtFile := filepath.Join(tmpDir, "test.txt")
+	if err := os.WriteFile(txtFile, []byte("package test\n"), 0644); err != nil {
+		t.Fatalf("Failed to write .txt file: %v", err)
+	}
+
+	matches, err := SearchRepo("package", tmpDir, SearchOptions{
+		Globs: []string{"*.go"},
+	})
+	if err != nil {
+		t.Fatalf("SearchRepo() error = %v, want nil", err)
+	}
+
+	if len(matches) != 1 {
+		t.Errorf("Glob search found %d matches, want 1", len(matches))
+	}
+
+	if len(matches) > 0 && !strings.HasSuffix(matches[0].RelPath, ".go") {
+		t.Errorf("Expected .go file, got %s", matches[0].RelPath)
+	}
+}
+
+func TestSearchRepo_Glob_Exclude(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	testFile := filepath.Join(tmpDir, "test.go")
+	if err := os.WriteFile(testFile, []byte("package main\n"), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	testFileExcluded := filepath.Join(tmpDir, "test_test.go")
+	if err := os.WriteFile(testFileExcluded, []byte("package main\n"), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	matches, err := SearchRepo("package", tmpDir, SearchOptions{
+		Globs: []string{"*.go", "!*_test.go"},
+	})
+	if err != nil {
+		t.Fatalf("SearchRepo() error = %v, want nil", err)
+	}
+
+	if len(matches) != 1 {
+		t.Errorf("Glob exclude search found %d matches, want 1", len(matches))
+	}
+
+	if len(matches) > 0 && strings.Contains(matches[0].RelPath, "_test.go") {
+		t.Errorf("Expected to exclude test files, but got %s", matches[0].RelPath)
+	}
+}
+
+func TestSearchRepo_Hidden(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	hiddenFile := filepath.Join(tmpDir, ".hidden")
+	if err := os.WriteFile(hiddenFile, []byte("secret data\n"), 0644); err != nil {
+		t.Fatalf("Failed to write hidden file: %v", err)
+	}
+
+	// Without --hidden
+	matches, err := SearchRepo("secret", tmpDir, SearchOptions{})
+	if err != nil {
+		t.Fatalf("SearchRepo() error = %v, want nil", err)
+	}
+	if len(matches) != 0 {
+		t.Errorf("Search without --hidden found %d matches, want 0", len(matches))
+	}
+
+	// With --hidden
+	matches, err = SearchRepo("secret", tmpDir, SearchOptions{Hidden: true})
+	if err != nil {
+		t.Fatalf("SearchRepo() error = %v, want nil", err)
+	}
+	if len(matches) != 1 {
+		t.Errorf("Search with --hidden found %d matches, want 1", len(matches))
+	}
+}
+
+func TestSearchRepo_FixedStrings(t *testing.T) {
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test.txt")
+	if err := os.WriteFile(testFile, []byte("func main() {}\n"), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	// Without -F, "main()" is regex (would match)
+	matches, err := SearchRepo("main()", tmpDir, SearchOptions{})
+	if err != nil {
+		t.Fatalf("SearchRepo() error = %v, want nil", err)
+	}
+	if len(matches) != 1 {
+		t.Errorf("Regex search found %d matches, want 1", len(matches))
+	}
+
+	// With -F, "main()" is literal (would match)
+	matches, err = SearchRepo("main()", tmpDir, SearchOptions{FixedStrings: true})
+	if err != nil {
+		t.Fatalf("SearchRepo() error = %v, want nil", err)
+	}
+	if len(matches) != 1 {
+		t.Errorf("Fixed-strings search found %d matches, want 1", len(matches))
+	}
+
+	// Test that regex metacharacters are treated literally with -F
+	testFile2 := filepath.Join(tmpDir, "regex.txt")
+	if err := os.WriteFile(testFile2, []byte(".*pattern\n"), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	// Without -F, ".*" would be regex (match any chars)
+	matches, err = SearchRepo(".*pattern", tmpDir, SearchOptions{})
+	if err != nil {
+		t.Fatalf("SearchRepo() error = %v, want nil", err)
+	}
+	// Should match both files (as regex)
+	if len(matches) < 1 {
+		t.Errorf("Regex search found %d matches, want at least 1", len(matches))
+	}
+
+	// With -F, ".*pattern" must match literally
+	matches, err = SearchRepo(".*pattern", tmpDir, SearchOptions{FixedStrings: true})
+	if err != nil {
+		t.Fatalf("SearchRepo() error = %v, want nil", err)
+	}
+	// Should only match the file with literal ".*pattern"
+	if len(matches) != 1 {
+		t.Errorf("Fixed-strings search found %d matches, want 1", len(matches))
+	}
+}
+
+func TestSearchRepo_CombinedOptions(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	hiddenFile := filepath.Join(tmpDir, ".hidden.go")
+	if err := os.WriteFile(hiddenFile, []byte("PACKAGE main\n"), 0644); err != nil {
+		t.Fatalf("Failed to write hidden file: %v", err)
+	}
+
+	matches, err := SearchRepo("package", tmpDir, SearchOptions{
+		IgnoreCase: true,
+		Globs:      []string{"*.go"},
+		Hidden:     true,
+	})
+	if err != nil {
+		t.Fatalf("SearchRepo() error = %v, want nil", err)
+	}
+
+	if len(matches) != 1 {
+		t.Errorf("Combined options search found %d matches, want 1", len(matches))
 	}
 }
 
