@@ -176,8 +176,8 @@ func TestSearchRepo_UTF8Content(t *testing.T) {
 	}
 
 	// Verify UTF-8 content is preserved
-	// Note: ripgrep preserves the exact line content including newline
-	expected := "日本語のテスト\n"
+	// Note: trailing newline is stripped
+	expected := "日本語のテスト"
 	if matches[0].LineText != expected {
 		t.Errorf("Match line text = %q, want %q", matches[0].LineText, expected)
 	}
@@ -685,10 +685,9 @@ func TestSearchRepo_MaxLineLength(t *testing.T) {
 	if len(matches) != 2 {
 		t.Fatalf("Search found %d matches, want 2", len(matches))
 	}
-	// First match should have full line content (ripgrep includes newline)
-	expectedLongLineLen := len(longLine) + 1 // +1 for newline
-	if len(matches[0].LineText) != expectedLongLineLen {
-		t.Errorf("Without MaxLineLength, line length = %d, want %d", len(matches[0].LineText), expectedLongLineLen)
+	// First match should have full line content (newline is stripped)
+	if len(matches[0].LineText) != len(longLine) {
+		t.Errorf("Without MaxLineLength, line length = %d, want %d", len(matches[0].LineText), len(longLine))
 	}
 
 	// Test with MaxLineLength = 50 (should truncate to 50 chars + "...")
@@ -706,8 +705,8 @@ func TestSearchRepo_MaxLineLength(t *testing.T) {
 	if !strings.HasSuffix(matches[0].LineText, "...") {
 		t.Errorf("Truncated line should end with '...', got: %s", matches[0].LineText)
 	}
-	// Second match (short line) should not be truncated (ripgrep includes newline)
-	expectedShortLineLen := len("short test line") + 1 // +1 for newline
+	// Second match (short line) should not be truncated (newline is stripped)
+	expectedShortLineLen := len("short test line")
 	if len(matches[1].LineText) != expectedShortLineLen {
 		t.Errorf("Short line should not be truncated, length = %d, want %d", len(matches[1].LineText), expectedShortLineLen)
 	}

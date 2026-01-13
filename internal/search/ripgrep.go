@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 // Match represents a single search match result.
@@ -137,6 +138,9 @@ func SearchRepo(pattern, repoRoot string, opts SearchOptions) ([]Match, error) {
 		lineText := ""
 		if matchData.Lines.Text != nil {
 			lineText = *matchData.Lines.Text
+
+			// Remove trailing newline characters (LF, CRLF, CR)
+			lineText = strings.TrimRight(lineText, "\r\n")
 
 			// Truncate line text if MaxLineLength is specified and line exceeds the limit
 			if opts.MaxLineLength > 0 && len(lineText) > opts.MaxLineLength {
