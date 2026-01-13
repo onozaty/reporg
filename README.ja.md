@@ -155,6 +155,16 @@ reporg -F "main()" /repo
 reporg -F "if (x > 0) {" /repo
 ```
 
+**出力する行の長さを制限:**
+
+```bash
+# 行を 500 文字に制限（minified ファイルなどで有用）
+reporg "pattern" /repo -m 500
+
+# 1000 文字に制限してファイルに出力
+reporg "TODO" /repo --max-line-length 1000 -o results.tsv
+```
+
 **オプションの組み合わせ:**
 
 ```bash
@@ -171,13 +181,14 @@ reporg -i "error" /repo1 /repo2 -g "*.go" -g "!vendor/**" --hidden
 ### 全オプション一覧
 
 ```
-  -o, --output string         出力先ファイルパス(未指定時は stdout)
-  -i, --ignore-case           大文字小文字を区別しない検索
-  -g, --glob pattern          Glob パターンでファイルをフィルタリング(複数指定可能)
-      --hidden                隠しファイル・ディレクトリも検索対象に含める
-  -F, --fixed-strings         パターンを正規表現ではなく固定文字列として扱う
-  -h, --help                  ヘルプを表示
-  -v, --version               バージョン情報を表示
+  -o, --output string           出力先ファイルパス(未指定時は stdout)
+  -i, --ignore-case             大文字小文字を区別しない検索
+  -g, --glob pattern            Glob パターンでファイルをフィルタリング(複数指定可能)
+      --hidden                  隠しファイル・ディレクトリも検索対象に含める
+  -F, --fixed-strings           パターンを正規表現ではなく固定文字列として扱う
+  -m, --max-line-length int     出力する行の最大文字数(0 = 制限なし)。指定した長さを超える行は '...' で切り詰められる
+  -h, --help                    ヘルプを表示
+  -v, --version                 バージョン情報を表示
 ```
 
 ## 制限事項

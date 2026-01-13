@@ -46,6 +46,7 @@ Each result includes the local file path, matched line content, and GitHub URL r
 	cmd.Flags().StringSliceP("glob", "g", nil, "Include or exclude files matching glob pattern (can be specified multiple times)")
 	cmd.Flags().Bool("hidden", false, "Search hidden files and directories")
 	cmd.Flags().BoolP("fixed-strings", "F", false, "Treat pattern as literal string, not regex")
+	cmd.Flags().IntP("max-line-length", "m", 0, "Maximum line length in output (0 = no limit). Lines longer than this will be truncated with '...'")
 
 	return cmd
 }
@@ -66,6 +67,7 @@ func run(cmd *cobra.Command, args []string) error {
 	globs, _ := cmd.Flags().GetStringSlice("glob")
 	hidden, _ := cmd.Flags().GetBool("hidden")
 	fixedStrings, _ := cmd.Flags().GetBool("fixed-strings")
+	maxLineLength, _ := cmd.Flags().GetInt("max-line-length")
 
 	// Validate and deduplicate repository paths
 	uniqueRepos, err := git.DeduplicateRepoPaths(repoPaths)
@@ -85,10 +87,11 @@ func run(cmd *cobra.Command, args []string) error {
 
 		// Create search options
 		searchOpts := search.SearchOptions{
-			IgnoreCase:   ignoreCase,
-			Globs:        globs,
-			Hidden:       hidden,
-			FixedStrings: fixedStrings,
+			IgnoreCase:    ignoreCase,
+			Globs:         globs,
+			Hidden:        hidden,
+			FixedStrings:  fixedStrings,
+			MaxLineLength: maxLineLength,
 		}
 
 		// Execute search

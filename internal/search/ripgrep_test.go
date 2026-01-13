@@ -666,3 +666,50 @@ func TestSearchRepo_VeryLongLine(t *testing.T) {
 	}
 }
 
+func TestSearchRepo_MaxLineLength(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a file with a long line
+	longLine := strings.Repeat("x", 200) + " test pattern here"
+	testFile := filepath.Join(tmpDir, "test.txt")
+	content := longLine + "\nshort test line\n"
+	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	// Test without MaxLineLength (should return full line)
+	matches, err := SearchRepo("test", tmpDir, SearchOptions{})
+	if err != nil {
+		t.Fatalf("SearchRepo() error = %v, want nil", err)
+	}
+	if len(matches) != 2 {
+		t.Fatalf("Search found %d matches, want 2", len(matches))
+	}
+	// First match should have full line content (ripgrep includes newline)
+	expectedLongLineLen := len(longLine) + 1 // +1 for newline
+	if len(matches[0].LineText) != expectedLongLineLen {
+		t.Errorf("Without MaxLineLength, line length = %d, want %d", len(matches[0].LineText), expectedLongLineLen)
+	}
+
+	// Test with MaxLineLength = 50 (should truncate to 50 chars + "...")
+	matches, err = SearchRepo("test", tmpDir, SearchOptions{MaxLineLength: 50})
+	if err != nil {
+		t.Fatalf("SearchRepo() error = %v, want nil", err)
+	}
+	if len(matches) != 2 {
+		t.Fatalf("Search found %d matches, want 2", len(matches))
+	}
+	// First match should be truncated to 50 + "..." = 53 chars
+	if len(matches[0].LineText) != 53 {
+		t.Errorf("With MaxLineLength=50, line length = %d, want 53 (50 + '...')", len(matches[0].LineText))
+	}
+	if !strings.HasSuffix(matches[0].LineText, "...") {
+		t.Errorf("Truncated line should end with '...', got: %s", matches[0].LineText)
+	}
+	// Second match (short line) should not be truncated (ripgrep includes newline)
+	expectedShortLineLen := len("short test line") + 1 // +1 for newline
+	if len(matches[1].LineText) != expectedShortLineLen {
+		t.Errorf("Short line should not be truncated, length = %d, want %d", len(matches[1].LineText), expectedShortLineLen)
+	}
+}
+

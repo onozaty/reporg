@@ -155,6 +155,16 @@ reporg -F "main()" /repo
 reporg -F "if (x > 0) {" /repo
 ```
 
+**Limit line length in output:**
+
+```bash
+# Limit lines to 500 characters (useful for minified files)
+reporg "pattern" /repo -m 500
+
+# Limit to 1000 characters and save to file
+reporg "TODO" /repo --max-line-length 1000 -o results.tsv
+```
+
 **Combining options:**
 
 ```bash
@@ -171,13 +181,14 @@ reporg -i "error" /repo1 /repo2 -g "*.go" -g "!vendor/**" --hidden
 ### All Options
 
 ```
-  -o, --output string         Output file path (default: stdout)
-  -i, --ignore-case           Case-insensitive search
-  -g, --glob pattern          Filter files by glob pattern (can be specified multiple times)
-      --hidden                Include hidden files and directories in search
-  -F, --fixed-strings         Treat pattern as literal string, not regex
-  -h, --help                  Show help
-  -v, --version               Show version information
+  -o, --output string           Output file path (default: stdout)
+  -i, --ignore-case             Case-insensitive search
+  -g, --glob pattern            Filter files by glob pattern (can be specified multiple times)
+      --hidden                  Include hidden files and directories in search
+  -F, --fixed-strings           Treat pattern as literal string, not regex
+  -m, --max-line-length int     Maximum line length in output (0 = no limit). Lines longer than this will be truncated with '...'
+  -h, --help                    Show help
+  -v, --version                 Show version information
 ```
 
 ## Limitations

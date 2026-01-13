@@ -40,10 +40,11 @@ type TextData struct {
 
 // SearchOptions contains optional parameters for ripgrep search.
 type SearchOptions struct {
-	IgnoreCase   bool     // Enable case-insensitive search (-i)
-	Globs        []string // Glob patterns to filter files (--glob)
-	Hidden       bool     // Search hidden files and directories (--hidden)
-	FixedStrings bool     // Treat pattern as literal string, not regex (-F)
+	IgnoreCase    bool     // Enable case-insensitive search (-i)
+	Globs         []string // Glob patterns to filter files (--glob)
+	Hidden        bool     // Search hidden files and directories (--hidden)
+	FixedStrings  bool     // Treat pattern as literal string, not regex (-F)
+	MaxLineLength int      // Maximum length of line text in output (0 = no limit)
 }
 
 // SearchRepo executes ripgrep search on the given repository and returns all matches.
@@ -136,6 +137,11 @@ func SearchRepo(pattern, repoRoot string, opts SearchOptions) ([]Match, error) {
 		lineText := ""
 		if matchData.Lines.Text != nil {
 			lineText = *matchData.Lines.Text
+
+			// Truncate line text if MaxLineLength is specified and line exceeds the limit
+			if opts.MaxLineLength > 0 && len(lineText) > opts.MaxLineLength {
+				lineText = lineText[:opts.MaxLineLength] + "..."
+			}
 		}
 
 		matches = append(matches, Match{

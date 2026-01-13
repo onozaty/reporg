@@ -234,6 +234,26 @@ reporg -F "if (x > 0) {" /repo
 reporg -F "*.txt" /repo
 ```
 
+### 出力オプション
+
+#### 行の最大長
+
+* `-m <length>`、`--max-line-length <length>`：出力する行の最大文字数（0 = 制限なし、デフォルト）
+  * 指定した文字数を超える行は切り詰められ、末尾に `...` が付加される
+  * minified JavaScript などの非常に長い行を含むファイルで TSV 出力を管理しやすくする
+
+**使用例:**
+```bash
+# 行を 500 文字に制限
+reporg "pattern" /repo -m 500
+
+# 行を 1000 文字に制限してファイルに出力
+reporg "TODO" /repo --max-line-length 1000 -o results.tsv
+
+# 制限なし（デフォルト）
+reporg "pattern" /repo
+```
+
 ### オプションの組み合わせ
 
 複数のオプションを同時に使用可能:
