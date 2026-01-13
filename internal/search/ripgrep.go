@@ -93,6 +93,11 @@ func SearchRepo(pattern, repoRoot string, opts SearchOptions) ([]Match, error) {
 	var matches []Match
 	scanner := bufio.NewScanner(stdout)
 
+	// Increase buffer size to handle large JSON lines (default is 64KB, set to 10MB)
+	// This allows processing of very long lines (e.g., minified JavaScript) without errors
+	buf := make([]byte, 0, 64*1024)
+	scanner.Buffer(buf, 10*1024*1024)
+
 	// Process each line of JSON output
 	for scanner.Scan() {
 		line := scanner.Bytes()

@@ -642,3 +642,27 @@ func TestSearchRepo_CombinedOptions(t *testing.T) {
 	}
 }
 
+func TestSearchRepo_VeryLongLine(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a file with a very long line (100KB, exceeds default 64KB buffer)
+	// This tests that the increased buffer size (10MB) can handle large lines
+	longLine := strings.Repeat("a", 100*1024) + " test pattern in long line"
+	testFile := filepath.Join(tmpDir, "long.txt")
+	content := longLine + "\nanother test line\n"
+	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	// Search for "test" pattern - should find matches in both the long line and short line
+	matches, err := SearchRepo("test", tmpDir, SearchOptions{})
+	if err != nil {
+		t.Fatalf("SearchRepo() error = %v, want nil", err)
+	}
+
+	// Should find 2 matches (one in the long line, one in the short line)
+	if len(matches) != 2 {
+		t.Errorf("Search found %d matches, want 2", len(matches))
+	}
+}
+
