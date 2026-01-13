@@ -25,6 +25,13 @@ English | [日本語](README.ja.md)
 brew install onozaty/tap/reporg
 ```
 
+### Scoop (Windows)
+
+```bash
+scoop bucket add onozaty https://github.com/onozaty/scoop-bucket
+scoop install reporg
+```
+
 ### Go install
 
 ```bash
