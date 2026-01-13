@@ -44,7 +44,12 @@ go install github.com/onozaty/reporg@latest
 
 ## 前提条件
 
-reporg を使用するには、[ripgrep](https://github.com/BurntSushi/ripgrep) がインストールされている必要があります。
+reporg は [ripgrep](https://github.com/BurntSushi/ripgrep) を使用して検索を行います。
+
+- **Homebrew または Scoop でインストールした場合**: ripgrep は依存関係として自動的にインストールされます
+- **Go install またはバイナリダウンロードでインストールした場合**: ripgrep を手動でインストールする必要があります
+
+### ripgrep の手動インストール
 
 ```bash
 # macOS

@@ -44,7 +44,12 @@ Download the binary for your platform from the [Releases](https://github.com/ono
 
 ## Prerequisites
 
-To use reporg, you need to have [ripgrep](https://github.com/BurntSushi/ripgrep) installed.
+reporg uses [ripgrep](https://github.com/BurntSushi/ripgrep) to perform searches.
+
+- **If you installed via Homebrew or Scoop**: ripgrep is automatically installed as a dependency
+- **If you installed via Go install or binary download**: you need to manually install ripgrep
+
+### Manual ripgrep Installation
 
 ```bash
 # macOS
