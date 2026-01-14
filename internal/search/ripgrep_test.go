@@ -712,3 +712,61 @@ func TestSearchRepo_MaxLineLength(t *testing.T) {
 	}
 }
 
+func TestSearchRepo_Encoding(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a test file with Shift-JIS encoding
+	// 「テスト」in Shift-JIS: 0x83 0x65 0x83 0x58 0x83 0x67
+	testFileSJIS := filepath.Join(tmpDir, "test_sjis.txt")
+	sjisContent := []byte{0x83, 0x65, 0x83, 0x58, 0x83, 0x67, 0x0a} // テスト\n in Shift-JIS
+	if err := os.WriteFile(testFileSJIS, sjisContent, 0644); err != nil {
+		t.Fatalf("Failed to write Shift-JIS test file: %v", err)
+	}
+
+	// Test with default/auto encoding - should NOT find Shift-JIS file
+	// (auto encoding only detects UTF-8/UTF-16 BOM)
+	matches, err := SearchRepo("テスト", tmpDir, SearchOptions{})
+	if err != nil {
+		t.Fatalf("SearchRepo() with default encoding error = %v, want nil", err)
+	}
+	if len(matches) != 0 {
+		t.Errorf("Search with default encoding should not find Shift-JIS file, found %d matches", len(matches))
+	}
+
+	// Test with Shift-JIS encoding specified - should find the file
+	matches, err = SearchRepo("テスト", tmpDir, SearchOptions{Encoding: "shift_jis"})
+	if err != nil {
+		t.Fatalf("SearchRepo() with shift_jis encoding error = %v, want nil", err)
+	}
+	if len(matches) != 1 {
+		t.Errorf("Search with shift_jis encoding found %d matches, want 1", len(matches))
+	}
+	if len(matches) > 0 && matches[0].LineText != "テスト" {
+		t.Errorf("Match line text = %q, want %q", matches[0].LineText, "テスト")
+	}
+
+	// Create a UTF-8 test file
+	testFileUTF8 := filepath.Join(tmpDir, "test_utf8.txt")
+	if err := os.WriteFile(testFileUTF8, []byte("UTF-8テスト\n"), 0644); err != nil {
+		t.Fatalf("Failed to write UTF-8 test file: %v", err)
+	}
+
+	// Test with UTF-8 encoding specified
+	matches, err = SearchRepo("UTF-8", tmpDir, SearchOptions{Encoding: "utf-8"})
+	if err != nil {
+		t.Fatalf("SearchRepo() with utf-8 encoding error = %v, want nil", err)
+	}
+	if len(matches) != 1 {
+		t.Errorf("Search with utf-8 encoding found %d matches, want 1", len(matches))
+	}
+
+	// Test with auto encoding (default) - should find UTF-8 file
+	matches, err = SearchRepo("UTF-8", tmpDir, SearchOptions{Encoding: "auto"})
+	if err != nil {
+		t.Fatalf("SearchRepo() with auto encoding error = %v, want nil", err)
+	}
+	if len(matches) != 1 {
+		t.Errorf("Search with auto encoding found %d matches, want 1 (UTF-8 file only)", len(matches))
+	}
+}
+

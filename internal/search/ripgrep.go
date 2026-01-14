@@ -46,6 +46,7 @@ type SearchOptions struct {
 	Hidden        bool     // Search hidden files and directories (--hidden)
 	FixedStrings  bool     // Treat pattern as literal string, not regex (-F)
 	MaxLineLength int      // Maximum length of line text in output (0 = no limit)
+	Encoding      string   // Text encoding to use (--encoding, default: auto)
 }
 
 // SearchRepo executes ripgrep search on the given repository and returns all matches.
@@ -76,6 +77,11 @@ func SearchRepo(pattern, repoRoot string, opts SearchOptions) ([]Match, error) {
 	// Add fixed-strings flag if requested
 	if opts.FixedStrings {
 		args = append(args, "-F")
+	}
+
+	// Add encoding flag if specified
+	if opts.Encoding != "" {
+		args = append(args, "--encoding", opts.Encoding)
 	}
 
 	// Add pattern and path

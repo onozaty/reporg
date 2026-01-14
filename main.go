@@ -47,6 +47,7 @@ Each result includes the local file path, matched line content, and GitHub URL r
 	cmd.Flags().Bool("hidden", false, "Search hidden files and directories")
 	cmd.Flags().BoolP("fixed-strings", "F", false, "Treat pattern as literal string, not regex")
 	cmd.Flags().IntP("max-line-length", "m", 0, "Maximum line length in output (0 = no limit). Lines longer than this will be truncated with '...'")
+	cmd.Flags().StringP("encoding", "E", "auto", "Text encoding to use for reading files (e.g., utf-8, shift_jis, euc-jp, iso-2022-jp). Default: auto (UTF-8/UTF-16 BOM detection)")
 
 	return cmd
 }
@@ -68,6 +69,7 @@ func run(cmd *cobra.Command, args []string) error {
 	hidden, _ := cmd.Flags().GetBool("hidden")
 	fixedStrings, _ := cmd.Flags().GetBool("fixed-strings")
 	maxLineLength, _ := cmd.Flags().GetInt("max-line-length")
+	encoding, _ := cmd.Flags().GetString("encoding")
 
 	// Validate and deduplicate repository paths
 	uniqueRepos, err := git.DeduplicateRepoPaths(repoPaths)
@@ -92,6 +94,7 @@ func run(cmd *cobra.Command, args []string) error {
 			Hidden:        hidden,
 			FixedStrings:  fixedStrings,
 			MaxLineLength: maxLineLength,
+			Encoding:      encoding,
 		}
 
 		// Execute search

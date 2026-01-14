@@ -170,6 +170,22 @@ reporg "pattern" /repo -m 500
 reporg "TODO" /repo --max-line-length 1000 -o results.tsv
 ```
 
+**Specify text encoding:**
+
+```bash
+# Search files encoded in Shift-JIS
+reporg "search pattern" /repo -E shift_jis
+
+# Search files encoded in EUC-JP
+reporg "search pattern" /repo --encoding euc-jp
+
+# Search files encoded in ISO-2022-JP (JIS)
+reporg "search pattern" /repo -E iso-2022-jp
+
+# Auto-detection (default)
+reporg "pattern" /repo
+```
+
 **Combining options:**
 
 ```bash
@@ -192,6 +208,7 @@ reporg -i "error" /repo1 /repo2 -g "*.go" -g "!vendor/**" --hidden
       --hidden                  Include hidden files and directories in search
   -F, --fixed-strings           Treat pattern as literal string, not regex
   -m, --max-line-length int     Maximum line length in output (0 = no limit). Lines longer than this will be truncated with '...'
+  -E, --encoding string         Text encoding for reading files (e.g., utf-8, shift_jis, euc-jp, iso-2022-jp). Default: auto (UTF-8/UTF-16 BOM detection)
   -h, --help                    Show help
   -v, --version                 Show version information
 ```

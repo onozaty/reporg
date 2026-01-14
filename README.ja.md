@@ -170,6 +170,22 @@ reporg "pattern" /repo -m 500
 reporg "TODO" /repo --max-line-length 1000 -o results.tsv
 ```
 
+**文字エンコーディングを指定:**
+
+```bash
+# Shift-JIS でエンコードされたファイルを検索
+reporg "検索パターン" /repo -E shift_jis
+
+# EUC-JP でエンコードされたファイルを検索
+reporg "検索パターン" /repo --encoding euc-jp
+
+# ISO-2022-JP (JIS) でエンコードされたファイルを検索
+reporg "検索パターン" /repo -E iso-2022-jp
+
+# 自動検出（デフォルト）
+reporg "パターン" /repo
+```
+
 **オプションの組み合わせ:**
 
 ```bash
@@ -192,6 +208,7 @@ reporg -i "error" /repo1 /repo2 -g "*.go" -g "!vendor/**" --hidden
       --hidden                  隠しファイル・ディレクトリも検索対象に含める
   -F, --fixed-strings           パターンを正規表現ではなく固定文字列として扱う
   -m, --max-line-length int     出力する行の最大文字数(0 = 制限なし)。指定した長さを超える行は '...' で切り詰められる
+  -E, --encoding string         ファイルを読み込む際の文字エンコーディング (例: utf-8, shift_jis, euc-jp, iso-2022-jp)。デフォルト: auto (UTF-8/UTF-16 BOM 検出)
   -h, --help                    ヘルプを表示
   -v, --version                 バージョン情報を表示
 ```

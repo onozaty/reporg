@@ -234,6 +234,25 @@ reporg -F "if (x > 0) {" /repo
 reporg -F "*.txt" /repo
 ```
 
+#### 文字エンコーディング
+
+* `-E <encoding>`、`--encoding <encoding>`：ファイルを読み込む際の文字エンコーディングを指定
+  * デフォルトは `auto`（UTF-8/UTF-16 BOM の自動検出のみ）
+  * 対応エンコーディング: utf-8, shift_jis, euc-jp, iso-2022-jp など
+  * [WHATWG Encoding Standard](https://encoding.spec.whatwg.org/#concept-encoding-get) のラベルを使用可能
+
+**使用例:**
+```bash
+# Shift-JIS でエンコードされたファイルを検索
+reporg "検索パターン" /repo -E shift_jis
+
+# EUC-JP でエンコードされたファイルを検索
+reporg "検索パターン" /repo --encoding euc-jp
+
+# ISO-2022-JP (JIS) でエンコードされたファイルを検索
+reporg "検索パターン" /repo -E iso-2022-jp
+```
+
 ### 出力オプション
 
 #### 行の最大長
