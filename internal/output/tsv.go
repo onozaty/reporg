@@ -15,26 +15,37 @@ type SearchResult struct {
 	GitHubURL   string // Full GitHub URL with line number
 }
 
-// WriteTSV writes search results in TSV format to the given writer.
-// Format: {Repository}\t{LocalPath}\t{MatchedLine}\t{GitHubURL}\n
-func WriteTSV(results []SearchResult, writer io.Writer) error {
-	w := bufio.NewWriter(writer)
-	defer w.Flush()
+// TSVWriter writes search results in TSV format one by one.
+type TSVWriter struct {
+	writer *bufio.Writer
+}
 
-	for _, result := range results {
-		// Sanitize matched line: replace tabs and newlines with spaces
-		sanitized := sanitizeLine(result.MatchedLine)
+// NewTSVWriter creates a new TSVWriter.
+func NewTSVWriter(w io.Writer) *TSVWriter {
+	return &TSVWriter{
+		writer: bufio.NewWriter(w),
+	}
+}
 
-		// Write TSV line
-		line := fmt.Sprintf("%s\t%s\t%s\t%s\n",
-			result.Repository,
-			result.LocalPath,
-			sanitized,
-			result.GitHubURL)
+// Write writes a single search result in TSV format.
+func (tw *TSVWriter) Write(result SearchResult) error {
+	// Sanitize matched line: replace tabs and newlines with spaces
+	sanitized := sanitizeLine(result.MatchedLine)
 
-		if _, err := w.WriteString(line); err != nil {
-			return fmt.Errorf("failed to write output: %w", err)
-		}
+	// Write TSV line
+	line := fmt.Sprintf("%s\t%s\t%s\t%s\n",
+		result.Repository,
+		result.LocalPath,
+		sanitized,
+		result.GitHubURL)
+
+	if _, err := tw.writer.WriteString(line); err != nil {
+		return fmt.Errorf("failed to write output: %w", err)
+	}
+
+	// Flush immediately for real-time output
+	if err := tw.writer.Flush(); err != nil {
+		return fmt.Errorf("failed to flush output: %w", err)
 	}
 
 	return nil

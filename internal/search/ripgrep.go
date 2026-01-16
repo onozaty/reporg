@@ -49,11 +49,12 @@ type SearchOptions struct {
 	Encoding      string   // Text encoding to use (--encoding, default: auto)
 }
 
-// SearchRepo executes ripgrep search on the given repository and returns all matches.
-func SearchRepo(pattern, repoRoot string, opts SearchOptions) ([]Match, error) {
+// SearchRepo executes ripgrep search on the given repository.
+// The onMatch callback is called for each match found.
+func SearchRepo(pattern, repoRoot string, opts SearchOptions, onMatch func(Match) error) error {
 	// Check if ripgrep is installed
 	if _, err := exec.LookPath("rg"); err != nil {
-		return nil, fmt.Errorf("ripgrep not found: please install ripgrep from https://github.com/BurntSushi/ripgrep#installation")
+		return fmt.Errorf("ripgrep not found: please install ripgrep from https://github.com/BurntSushi/ripgrep#installation")
 	}
 
 	// Build ripgrep arguments
@@ -91,14 +92,13 @@ func SearchRepo(pattern, repoRoot string, opts SearchOptions) ([]Match, error) {
 	cmd := exec.Command("rg", args...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create stdout pipe: %w", err)
+		return fmt.Errorf("failed to create stdout pipe: %w", err)
 	}
 
 	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("failed to start ripgrep: %w", err)
+		return fmt.Errorf("failed to start ripgrep: %w", err)
 	}
 
-	var matches []Match
 	scanner := bufio.NewScanner(stdout)
 
 	// Increase buffer size to handle large JSON lines (default is 64KB, set to 10MB)
@@ -154,24 +154,29 @@ func SearchRepo(pattern, repoRoot string, opts SearchOptions) ([]Match, error) {
 			}
 		}
 
-		matches = append(matches, Match{
+		match := Match{
 			RelPath:    relPath,
 			LineNumber: matchData.LineNumber,
 			LineText:   lineText,
-		})
+		}
+
+		// Call the callback
+		if err := onMatch(match); err != nil {
+			return fmt.Errorf("callback error: %w", err)
+		}
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading ripgrep output: %w", err)
+		return fmt.Errorf("error reading ripgrep output: %w", err)
 	}
 
 	if err := cmd.Wait(); err != nil {
 		// Exit code 1 means no matches found, which is not an error
 		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
-			return matches, nil // Return empty matches
+			return nil
 		}
-		return nil, fmt.Errorf("ripgrep failed: %w", err)
+		return fmt.Errorf("ripgrep failed: %w", err)
 	}
 
-	return matches, nil
+	return nil
 }

@@ -77,53 +77,6 @@ func run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("repository validation failed: %w", err)
 	}
 
-	var allResults []output.SearchResult
-
-	// Process each repository
-	for _, repoRoot := range uniqueRepos {
-		// Get repository context
-		repoCtx, err := getRepoContext(repoRoot)
-		if err != nil {
-			return fmt.Errorf("failed to get repository context for %s: %w", repoRoot, err)
-		}
-
-		// Create search options
-		searchOpts := search.SearchOptions{
-			IgnoreCase:    ignoreCase,
-			Globs:         globs,
-			Hidden:        hidden,
-			FixedStrings:  fixedStrings,
-			MaxLineLength: maxLineLength,
-			Encoding:      encoding,
-		}
-
-		// Execute search
-		matches, err := search.SearchRepo(pattern, repoRoot, searchOpts)
-		if err != nil {
-			return fmt.Errorf("search failed in %s: %w", repoRoot, err)
-		}
-
-		// Convert matches to search results with GitHub URLs
-		repository := fmt.Sprintf("%s/%s", repoCtx.Owner, repoCtx.Repo)
-		for _, match := range matches {
-			localPath := fmt.Sprintf("%s:%d", match.RelPath, match.LineNumber)
-			githubURL := git.BuildGitHubFileURL(
-				repoCtx.Owner,
-				repoCtx.Repo,
-				repoCtx.Branch,
-				match.RelPath,
-				match.LineNumber,
-			)
-
-			allResults = append(allResults, output.SearchResult{
-				Repository:  repository,
-				LocalPath:   localPath,
-				MatchedLine: match.LineText,
-				GitHubURL:   githubURL,
-			})
-		}
-	}
-
 	// Determine output destination
 	writer := os.Stdout
 	if outputFile != "" {
@@ -135,9 +88,53 @@ func run(cmd *cobra.Command, args []string) error {
 		writer = file
 	}
 
-	// Write TSV output
-	if err := output.WriteTSV(allResults, writer); err != nil {
-		return fmt.Errorf("failed to write output: %w", err)
+	// Create TSV writer
+	tsvWriter := output.NewTSVWriter(writer)
+
+	// Process each repository
+	for _, repoRoot := range uniqueRepos {
+		// Get repository context
+		repoCtx, err := getRepoContext(repoRoot)
+		if err != nil {
+			return fmt.Errorf("failed to get repository context for %s: %w", repoRoot, err)
+		}
+
+		repository := fmt.Sprintf("%s/%s", repoCtx.Owner, repoCtx.Repo)
+
+		// Create search options
+		searchOpts := search.SearchOptions{
+			IgnoreCase:    ignoreCase,
+			Globs:         globs,
+			Hidden:        hidden,
+			FixedStrings:  fixedStrings,
+			MaxLineLength: maxLineLength,
+			Encoding:      encoding,
+		}
+
+		// Execute search with callback for real-time output
+		err = search.SearchRepo(pattern, repoRoot, searchOpts, func(match search.Match) error {
+			// Convert match to search result and write immediately
+			localPath := fmt.Sprintf("%s:%d", match.RelPath, match.LineNumber)
+			githubURL := git.BuildGitHubFileURL(
+				repoCtx.Owner,
+				repoCtx.Repo,
+				repoCtx.Branch,
+				match.RelPath,
+				match.LineNumber,
+			)
+
+			result := output.SearchResult{
+				Repository:  repository,
+				LocalPath:   localPath,
+				MatchedLine: match.LineText,
+				GitHubURL:   githubURL,
+			}
+
+			return tsvWriter.Write(result)
+		})
+		if err != nil {
+			return fmt.Errorf("search failed in %s: %w", repoRoot, err)
+		}
 	}
 
 	return nil

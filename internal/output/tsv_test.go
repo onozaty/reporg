@@ -2,35 +2,45 @@ package output
 
 import (
 	"bytes"
-	"strings"
+	"errors"
 	"testing"
 )
 
-func TestWriteTSV_SingleResult(t *testing.T) {
-	results := []SearchResult{
-		{
-			Repository:  "owner/repo",
-			LocalPath:   "main.go:10",
-			MatchedLine: "package main",
-			GitHubURL:   "https://github.com/owner/repo/blob/main/main.go#L10",
-		},
+// errorWriter is a writer that always returns an error
+type errorWriter struct{}
+
+func (e *errorWriter) Write(p []byte) (n int, err error) {
+	return 0, errors.New("write error")
+}
+
+func TestTSVWriter_Write_SingleResult(t *testing.T) {
+	var buf bytes.Buffer
+	writer := NewTSVWriter(&buf)
+
+	result := SearchResult{
+		Repository:  "owner/repo",
+		LocalPath:   "main.go:10",
+		MatchedLine: "package main",
+		GitHubURL:   "https://github.com/owner/repo/blob/main/main.go#L10",
 	}
 
-	var buf bytes.Buffer
-	err := WriteTSV(results, &buf)
+	err := writer.Write(result)
 	if err != nil {
-		t.Fatalf("WriteTSV() error = %v, want nil", err)
+		t.Fatalf("Write() error = %v, want nil", err)
 	}
 
 	want := "owner/repo\tmain.go:10\tpackage main\thttps://github.com/owner/repo/blob/main/main.go#L10\n"
 	got := buf.String()
 
 	if got != want {
-		t.Errorf("WriteTSV() = %q, want %q", got, want)
+		t.Errorf("Write() = %q, want %q", got, want)
 	}
 }
 
-func TestWriteTSV_MultipleResults(t *testing.T) {
+func TestTSVWriter_Write_MultipleResults(t *testing.T) {
+	var buf bytes.Buffer
+	writer := NewTSVWriter(&buf)
+
 	results := []SearchResult{
 		{
 			Repository:  "owner/repo",
@@ -46,58 +56,36 @@ func TestWriteTSV_MultipleResults(t *testing.T) {
 		},
 	}
 
-	var buf bytes.Buffer
-	err := WriteTSV(results, &buf)
-	if err != nil {
-		t.Fatalf("WriteTSV() error = %v, want nil", err)
+	for _, result := range results {
+		err := writer.Write(result)
+		if err != nil {
+			t.Fatalf("Write() error = %v, want nil", err)
+		}
 	}
 
-	lines := strings.Split(strings.TrimRight(buf.String(), "\n"), "\n")
-	if len(lines) != 2 {
-		t.Errorf("WriteTSV() wrote %d lines, want 2", len(lines))
-	}
+	want := "owner/repo\tmain.go:10\tpackage main\thttps://github.com/owner/repo/blob/main/main.go#L10\n" +
+		"owner/repo\tcmd/root.go:25\tfunc Execute() error {\thttps://github.com/owner/repo/blob/main/cmd/root.go#L25\n"
+	got := buf.String()
 
-	// Check first line
-	want1 := "owner/repo\tmain.go:10\tpackage main\thttps://github.com/owner/repo/blob/main/main.go#L10"
-	if lines[0] != want1 {
-		t.Errorf("WriteTSV() line 1 = %q, want %q", lines[0], want1)
-	}
-
-	// Check second line
-	want2 := "owner/repo\tcmd/root.go:25\tfunc Execute() error {\thttps://github.com/owner/repo/blob/main/cmd/root.go#L25"
-	if lines[1] != want2 {
-		t.Errorf("WriteTSV() line 2 = %q, want %q", lines[1], want2)
+	if got != want {
+		t.Errorf("Write() = %q, want %q", got, want)
 	}
 }
 
-func TestWriteTSV_EmptyResults(t *testing.T) {
-	results := []SearchResult{}
-
+func TestTSVWriter_Write_TabsInMatchedLine(t *testing.T) {
 	var buf bytes.Buffer
-	err := WriteTSV(results, &buf)
+	writer := NewTSVWriter(&buf)
+
+	result := SearchResult{
+		Repository:  "owner/repo",
+		LocalPath:   "test.go:5",
+		MatchedLine: "key\tvalue\tdata",
+		GitHubURL:   "https://github.com/owner/repo/blob/main/test.go#L5",
+	}
+
+	err := writer.Write(result)
 	if err != nil {
-		t.Fatalf("WriteTSV() error = %v, want nil", err)
-	}
-
-	if buf.Len() != 0 {
-		t.Errorf("WriteTSV() wrote %d bytes, want 0", buf.Len())
-	}
-}
-
-func TestWriteTSV_TabsInMatchedLine(t *testing.T) {
-	results := []SearchResult{
-		{
-			Repository:  "owner/repo",
-			LocalPath:   "test.go:5",
-			MatchedLine: "key\tvalue\tdata",
-			GitHubURL:   "https://github.com/owner/repo/blob/main/test.go#L5",
-		},
-	}
-
-	var buf bytes.Buffer
-	err := WriteTSV(results, &buf)
-	if err != nil {
-		t.Fatalf("WriteTSV() error = %v, want nil", err)
+		t.Fatalf("Write() error = %v, want nil", err)
 	}
 
 	// Tabs in matched line should be replaced with spaces
@@ -105,24 +93,24 @@ func TestWriteTSV_TabsInMatchedLine(t *testing.T) {
 	got := buf.String()
 
 	if got != want {
-		t.Errorf("WriteTSV() = %q, want %q", got, want)
+		t.Errorf("Write() = %q, want %q", got, want)
 	}
 }
 
-func TestWriteTSV_NewlinesInMatchedLine(t *testing.T) {
-	results := []SearchResult{
-		{
-			Repository:  "owner/repo",
-			LocalPath:   "test.go:5",
-			MatchedLine: "line1\nline2\rline3",
-			GitHubURL:   "https://github.com/owner/repo/blob/main/test.go#L5",
-		},
+func TestTSVWriter_Write_NewlinesInMatchedLine(t *testing.T) {
+	var buf bytes.Buffer
+	writer := NewTSVWriter(&buf)
+
+	result := SearchResult{
+		Repository:  "owner/repo",
+		LocalPath:   "test.go:5",
+		MatchedLine: "line1\nline2\rline3",
+		GitHubURL:   "https://github.com/owner/repo/blob/main/test.go#L5",
 	}
 
-	var buf bytes.Buffer
-	err := WriteTSV(results, &buf)
+	err := writer.Write(result)
 	if err != nil {
-		t.Fatalf("WriteTSV() error = %v, want nil", err)
+		t.Fatalf("Write() error = %v, want nil", err)
 	}
 
 	// Newlines in matched line should be replaced with spaces
@@ -130,32 +118,23 @@ func TestWriteTSV_NewlinesInMatchedLine(t *testing.T) {
 	got := buf.String()
 
 	if got != want {
-		t.Errorf("WriteTSV() = %q, want %q", got, want)
+		t.Errorf("Write() = %q, want %q", got, want)
 	}
 }
 
-func TestWriteTSV_LeadingTrailingWhitespace(t *testing.T) {
-	results := []SearchResult{
-		{
-			Repository:  "owner/repo",
-			LocalPath:   "test.go:5",
-			MatchedLine: "  \t  content with spaces  \t  ",
-			GitHubURL:   "https://github.com/owner/repo/blob/main/test.go#L5",
-		},
+func TestTSVWriter_Write_Error(t *testing.T) {
+	writer := NewTSVWriter(&errorWriter{})
+
+	result := SearchResult{
+		Repository:  "owner/repo",
+		LocalPath:   "test.go:5",
+		MatchedLine: "test",
+		GitHubURL:   "https://github.com/owner/repo/blob/main/test.go#L5",
 	}
 
-	var buf bytes.Buffer
-	err := WriteTSV(results, &buf)
-	if err != nil {
-		t.Fatalf("WriteTSV() error = %v, want nil", err)
-	}
-
-	// Leading/trailing whitespace should be trimmed, internal tabs replaced
-	want := "owner/repo\ttest.go:5\tcontent with spaces\thttps://github.com/owner/repo/blob/main/test.go#L5\n"
-	got := buf.String()
-
-	if got != want {
-		t.Errorf("WriteTSV() = %q, want %q", got, want)
+	err := writer.Write(result)
+	if err == nil {
+		t.Error("Write() expected error, got nil")
 	}
 }
 

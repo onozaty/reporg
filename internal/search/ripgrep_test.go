@@ -2,12 +2,23 @@ package search
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+// collectMatches is a helper function that collects all matches into a slice
+func collectMatches(pattern, dir string, opts SearchOptions) ([]Match, error) {
+	var matches []Match
+	err := SearchRepo(pattern, dir, opts, func(match Match) error {
+		matches = append(matches, match)
+		return nil
+	})
+	return matches, err
+}
 
 func TestSearchRepo_WithMatches(t *testing.T) {
 	// Create temporary directory with test files
@@ -25,7 +36,11 @@ func TestSearchRepo_WithMatches(t *testing.T) {
 	}
 
 	// Test SearchRepo with pattern "package"
-	matches, err := SearchRepo("package", tmpDir, SearchOptions{})
+	var matches []Match
+	err := SearchRepo("package", tmpDir, SearchOptions{}, func(match Match) error {
+		matches = append(matches, match)
+		return nil
+	})
 	if err != nil {
 		t.Fatalf("SearchRepo() error = %v, want nil", err)
 	}
@@ -59,7 +74,7 @@ func TestSearchRepo_NoMatches(t *testing.T) {
 	}
 
 	// Test SearchRepo with pattern that won't match
-	matches, err := SearchRepo("nonexistent_pattern_xyz", tmpDir, SearchOptions{})
+	matches, err := collectMatches("nonexistent_pattern_xyz", tmpDir, SearchOptions{})
 	if err != nil {
 		t.Fatalf("SearchRepo() error = %v, want nil", err)
 	}
@@ -75,7 +90,7 @@ func TestSearchRepo_EmptyDirectory(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Test SearchRepo on empty directory
-	matches, err := SearchRepo("package", tmpDir, SearchOptions{})
+	matches, err := collectMatches("package", tmpDir, SearchOptions{})
 	if err != nil {
 		t.Fatalf("SearchRepo() error = %v, want nil", err)
 	}
@@ -105,7 +120,7 @@ func main() {
 	}
 
 	// Test SearchRepo with pattern "package"
-	matches, err := SearchRepo("package", tmpDir, SearchOptions{})
+	matches, err := collectMatches("package", tmpDir, SearchOptions{})
 	if err != nil {
 		t.Fatalf("SearchRepo() error = %v, want nil", err)
 	}
@@ -139,7 +154,7 @@ func TestSearchRepo_RelativePath(t *testing.T) {
 	}
 
 	// Test SearchRepo
-	matches, err := SearchRepo("package", tmpDir, SearchOptions{})
+	matches, err := collectMatches("package", tmpDir, SearchOptions{})
 	if err != nil {
 		t.Fatalf("SearchRepo() error = %v, want nil", err)
 	}
@@ -166,7 +181,7 @@ func TestSearchRepo_UTF8Content(t *testing.T) {
 	}
 
 	// Test SearchRepo with Japanese pattern
-	matches, err := SearchRepo("日本語", tmpDir, SearchOptions{})
+	matches, err := collectMatches("日本語", tmpDir, SearchOptions{})
 	if err != nil {
 		t.Fatalf("SearchRepo() error = %v, want nil", err)
 	}
@@ -193,7 +208,7 @@ func TestSearchRepo_InvalidPattern(t *testing.T) {
 	}
 
 	// Test SearchRepo with invalid regex pattern
-	_, err := SearchRepo("[invalid", tmpDir, SearchOptions{})
+	_, err := collectMatches("[invalid", tmpDir, SearchOptions{})
 	if err == nil {
 		t.Error("SearchRepo() expected error for invalid pattern, got nil")
 	}
@@ -201,7 +216,7 @@ func TestSearchRepo_InvalidPattern(t *testing.T) {
 
 func TestSearchRepo_NonexistentDirectory(t *testing.T) {
 	// Test SearchRepo with non-existent directory
-	_, err := SearchRepo("package", "/nonexistent/directory/path", SearchOptions{})
+	_, err := collectMatches("package", "/nonexistent/directory/path", SearchOptions{})
 	if err == nil {
 		t.Error("SearchRepo() expected error for non-existent directory, got nil")
 	}
@@ -465,7 +480,7 @@ func TestSearchRepo_IgnoreCase(t *testing.T) {
 	}
 
 	// Test case-sensitive (should not match)
-	matches, err := SearchRepo("package", tmpDir, SearchOptions{})
+	matches, err := collectMatches("package", tmpDir, SearchOptions{})
 	if err != nil {
 		t.Fatalf("SearchRepo() error = %v, want nil", err)
 	}
@@ -474,7 +489,7 @@ func TestSearchRepo_IgnoreCase(t *testing.T) {
 	}
 
 	// Test case-insensitive (should match)
-	matches, err = SearchRepo("package", tmpDir, SearchOptions{IgnoreCase: true})
+	matches, err = collectMatches("package", tmpDir, SearchOptions{IgnoreCase: true})
 	if err != nil {
 		t.Fatalf("SearchRepo() error = %v, want nil", err)
 	}
@@ -496,7 +511,7 @@ func TestSearchRepo_Glob_Include(t *testing.T) {
 		t.Fatalf("Failed to write .txt file: %v", err)
 	}
 
-	matches, err := SearchRepo("package", tmpDir, SearchOptions{
+	matches, err := collectMatches("package", tmpDir, SearchOptions{
 		Globs: []string{"*.go"},
 	})
 	if err != nil {
@@ -525,7 +540,7 @@ func TestSearchRepo_Glob_Exclude(t *testing.T) {
 		t.Fatalf("Failed to write test file: %v", err)
 	}
 
-	matches, err := SearchRepo("package", tmpDir, SearchOptions{
+	matches, err := collectMatches("package", tmpDir, SearchOptions{
 		Globs: []string{"*.go", "!*_test.go"},
 	})
 	if err != nil {
@@ -550,7 +565,7 @@ func TestSearchRepo_Hidden(t *testing.T) {
 	}
 
 	// Without --hidden
-	matches, err := SearchRepo("secret", tmpDir, SearchOptions{})
+	matches, err := collectMatches("secret", tmpDir, SearchOptions{})
 	if err != nil {
 		t.Fatalf("SearchRepo() error = %v, want nil", err)
 	}
@@ -559,7 +574,7 @@ func TestSearchRepo_Hidden(t *testing.T) {
 	}
 
 	// With --hidden
-	matches, err = SearchRepo("secret", tmpDir, SearchOptions{Hidden: true})
+	matches, err = collectMatches("secret", tmpDir, SearchOptions{Hidden: true})
 	if err != nil {
 		t.Fatalf("SearchRepo() error = %v, want nil", err)
 	}
@@ -576,7 +591,7 @@ func TestSearchRepo_FixedStrings(t *testing.T) {
 	}
 
 	// Without -F, "main()" is regex (would match)
-	matches, err := SearchRepo("main()", tmpDir, SearchOptions{})
+	matches, err := collectMatches("main()", tmpDir, SearchOptions{})
 	if err != nil {
 		t.Fatalf("SearchRepo() error = %v, want nil", err)
 	}
@@ -585,7 +600,7 @@ func TestSearchRepo_FixedStrings(t *testing.T) {
 	}
 
 	// With -F, "main()" is literal (would match)
-	matches, err = SearchRepo("main()", tmpDir, SearchOptions{FixedStrings: true})
+	matches, err = collectMatches("main()", tmpDir, SearchOptions{FixedStrings: true})
 	if err != nil {
 		t.Fatalf("SearchRepo() error = %v, want nil", err)
 	}
@@ -600,7 +615,7 @@ func TestSearchRepo_FixedStrings(t *testing.T) {
 	}
 
 	// Without -F, ".*" would be regex (match any chars)
-	matches, err = SearchRepo(".*pattern", tmpDir, SearchOptions{})
+	matches, err = collectMatches(".*pattern", tmpDir, SearchOptions{})
 	if err != nil {
 		t.Fatalf("SearchRepo() error = %v, want nil", err)
 	}
@@ -610,7 +625,7 @@ func TestSearchRepo_FixedStrings(t *testing.T) {
 	}
 
 	// With -F, ".*pattern" must match literally
-	matches, err = SearchRepo(".*pattern", tmpDir, SearchOptions{FixedStrings: true})
+	matches, err = collectMatches(".*pattern", tmpDir, SearchOptions{FixedStrings: true})
 	if err != nil {
 		t.Fatalf("SearchRepo() error = %v, want nil", err)
 	}
@@ -628,7 +643,7 @@ func TestSearchRepo_CombinedOptions(t *testing.T) {
 		t.Fatalf("Failed to write hidden file: %v", err)
 	}
 
-	matches, err := SearchRepo("package", tmpDir, SearchOptions{
+	matches, err := collectMatches("package", tmpDir, SearchOptions{
 		IgnoreCase: true,
 		Globs:      []string{"*.go"},
 		Hidden:     true,
@@ -655,7 +670,7 @@ func TestSearchRepo_VeryLongLine(t *testing.T) {
 	}
 
 	// Search for "test" pattern - should find matches in both the long line and short line
-	matches, err := SearchRepo("test", tmpDir, SearchOptions{})
+	matches, err := collectMatches("test", tmpDir, SearchOptions{})
 	if err != nil {
 		t.Fatalf("SearchRepo() error = %v, want nil", err)
 	}
@@ -678,7 +693,7 @@ func TestSearchRepo_MaxLineLength(t *testing.T) {
 	}
 
 	// Test without MaxLineLength (should return full line)
-	matches, err := SearchRepo("test", tmpDir, SearchOptions{})
+	matches, err := collectMatches("test", tmpDir, SearchOptions{})
 	if err != nil {
 		t.Fatalf("SearchRepo() error = %v, want nil", err)
 	}
@@ -691,7 +706,7 @@ func TestSearchRepo_MaxLineLength(t *testing.T) {
 	}
 
 	// Test with MaxLineLength = 50 (should truncate to 50 chars + "...")
-	matches, err = SearchRepo("test", tmpDir, SearchOptions{MaxLineLength: 50})
+	matches, err = collectMatches("test", tmpDir, SearchOptions{MaxLineLength: 50})
 	if err != nil {
 		t.Fatalf("SearchRepo() error = %v, want nil", err)
 	}
@@ -725,7 +740,7 @@ func TestSearchRepo_Encoding(t *testing.T) {
 
 	// Test with default/auto encoding - should NOT find Shift-JIS file
 	// (auto encoding only detects UTF-8/UTF-16 BOM)
-	matches, err := SearchRepo("テスト", tmpDir, SearchOptions{})
+	matches, err := collectMatches("テスト", tmpDir, SearchOptions{})
 	if err != nil {
 		t.Fatalf("SearchRepo() with default encoding error = %v, want nil", err)
 	}
@@ -734,7 +749,7 @@ func TestSearchRepo_Encoding(t *testing.T) {
 	}
 
 	// Test with Shift-JIS encoding specified - should find the file
-	matches, err = SearchRepo("テスト", tmpDir, SearchOptions{Encoding: "shift_jis"})
+	matches, err = collectMatches("テスト", tmpDir, SearchOptions{Encoding: "shift_jis"})
 	if err != nil {
 		t.Fatalf("SearchRepo() with shift_jis encoding error = %v, want nil", err)
 	}
@@ -752,7 +767,7 @@ func TestSearchRepo_Encoding(t *testing.T) {
 	}
 
 	// Test with UTF-8 encoding specified
-	matches, err = SearchRepo("UTF-8", tmpDir, SearchOptions{Encoding: "utf-8"})
+	matches, err = collectMatches("UTF-8", tmpDir, SearchOptions{Encoding: "utf-8"})
 	if err != nil {
 		t.Fatalf("SearchRepo() with utf-8 encoding error = %v, want nil", err)
 	}
@@ -761,7 +776,7 @@ func TestSearchRepo_Encoding(t *testing.T) {
 	}
 
 	// Test with auto encoding (default) - should find UTF-8 file
-	matches, err = SearchRepo("UTF-8", tmpDir, SearchOptions{Encoding: "auto"})
+	matches, err = collectMatches("UTF-8", tmpDir, SearchOptions{Encoding: "auto"})
 	if err != nil {
 		t.Fatalf("SearchRepo() with auto encoding error = %v, want nil", err)
 	}
@@ -770,3 +785,66 @@ func TestSearchRepo_Encoding(t *testing.T) {
 	}
 }
 
+func TestSearchRepo_OnMatchCallback(t *testing.T) {
+	// Create temporary directory with test files
+	tmpDir := t.TempDir()
+
+	testFile1 := filepath.Join(tmpDir, "test1.txt")
+	if err := os.WriteFile(testFile1, []byte("package main\nfunc main() {}\n"), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	testFile2 := filepath.Join(tmpDir, "test2.txt")
+	if err := os.WriteFile(testFile2, []byte("package search\nfunc Search() {}\n"), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	// Test with callback
+	var callbackMatches []Match
+	err := SearchRepo("package", tmpDir, SearchOptions{}, func(match Match) error {
+		callbackMatches = append(callbackMatches, match)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("SearchRepo() error = %v, want nil", err)
+	}
+
+	// Should have received 2 matches via callback
+	if len(callbackMatches) != 2 {
+		t.Errorf("Callback received %d matches, want 2", len(callbackMatches))
+	}
+
+	// Verify callback matches contain expected data
+	for _, match := range callbackMatches {
+		if match.LineNumber != 1 {
+			t.Errorf("Match line number = %d, want 1", match.LineNumber)
+		}
+		if match.LineText == "" {
+			t.Error("Match line text is empty")
+		}
+	}
+}
+
+func TestSearchRepo_OnMatchCallback_Error(t *testing.T) {
+	// Create temporary directory with test file
+	tmpDir := t.TempDir()
+
+	testFile := filepath.Join(tmpDir, "test.txt")
+	if err := os.WriteFile(testFile, []byte("package main\n"), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	// Test with callback that returns an error
+	callbackErr := fmt.Errorf("callback error")
+	err := SearchRepo("package", tmpDir, SearchOptions{}, func(match Match) error {
+		return callbackErr
+	})
+
+	// Should return the callback error
+	if err == nil {
+		t.Error("SearchRepo() expected error from callback, got nil")
+	}
+	if !strings.Contains(err.Error(), "callback error") {
+		t.Errorf("Error message = %v, want to contain 'callback error'", err)
+	}
+}
