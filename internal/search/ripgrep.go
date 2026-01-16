@@ -2,6 +2,7 @@ package search
 
 import (
 	"bufio"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os/exec"
@@ -36,7 +37,8 @@ type PathData struct {
 
 // TextData represents text data that can be either UTF-8 text or base64 bytes.
 type TextData struct {
-	Text *string `json:"text,omitempty"`
+	Text  *string `json:"text,omitempty"`
+	Bytes *string `json:"bytes,omitempty"` // Base64-encoded bytes for non-UTF-8 content
 }
 
 // SearchOptions contains optional parameters for ripgrep search.
@@ -137,21 +139,27 @@ func SearchRepo(pattern, repoRoot string, opts SearchOptions, onMatch func(Match
 			relPath = absPath // Fall back to absolute path if conversion fails
 		}
 
-		// Extract line text (use empty string if text field is not present)
-		// Note: ripgrep uses "text" field for UTF-8 content and "bytes" field for non-UTF-8.
-		// This implementation only handles the "text" field. If ripgrep outputs "bytes" instead,
-		// the line text will be empty.
+		// Extract line text
+		// ripgrep uses "text" field for UTF-8 content and "bytes" field for non-UTF-8 content.
+		// When using --encoding with non-UTF-8 encodings, ripgrep may output base64-encoded bytes.
 		lineText := ""
 		if matchData.Lines.Text != nil {
+			// UTF-8 text content
 			lineText = *matchData.Lines.Text
-
-			// Remove trailing newline characters (LF, CRLF, CR)
-			lineText = strings.TrimRight(lineText, "\r\n")
-
-			// Truncate line text if MaxLineLength is specified and line exceeds the limit
-			if opts.MaxLineLength > 0 && len(lineText) > opts.MaxLineLength {
-				lineText = lineText[:opts.MaxLineLength] + "..."
+		} else if matchData.Lines.Bytes != nil {
+			// Base64-encoded bytes (for non-UTF-8 content)
+			// Decode base64 to get the original bytes, then convert to string
+			if decoded, err := base64.StdEncoding.DecodeString(*matchData.Lines.Bytes); err == nil {
+				lineText = string(decoded)
 			}
+		}
+
+		// Remove trailing newline characters (LF, CRLF, CR)
+		lineText = strings.TrimRight(lineText, "\r\n")
+
+		// Truncate line text if MaxLineLength is specified and line exceeds the limit
+		if opts.MaxLineLength > 0 && len(lineText) > opts.MaxLineLength {
+			lineText = lineText[:opts.MaxLineLength] + "..."
 		}
 
 		match := Match{

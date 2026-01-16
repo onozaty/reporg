@@ -848,3 +848,59 @@ func TestSearchRepo_OnMatchCallback_Error(t *testing.T) {
 		t.Errorf("Error message = %v, want to contain 'callback error'", err)
 	}
 }
+
+func TestSearchRepo_BytesFieldDecoding(t *testing.T) {
+	// This test verifies that ripgrep's "bytes" field (base64-encoded) is properly decoded
+	// When ripgrep encounters non-UTF-8 content without --encoding flag, it returns base64-encoded bytes
+	tmpDir := t.TempDir()
+
+	// Create a file with mixed ASCII and Shift-JIS content
+	// "ABC" + "テスト" (Shift-JIS: 0x83 0x65 0x83 0x58 0x83 0x67) + "XYZ\n"
+	testFile := filepath.Join(tmpDir, "mixed.txt")
+	mixedContent := []byte{0x41, 0x42, 0x43, 0x83, 0x65, 0x83, 0x58, 0x83, 0x67, 0x58, 0x59, 0x5a, 0x0a}
+	if err := os.WriteFile(testFile, mixedContent, 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	// Search for "ABC" without --encoding flag
+	// ripgrep will detect non-UTF-8 content and return bytes field instead of text field
+	matches, err := collectMatches("ABC", tmpDir, SearchOptions{})
+	if err != nil {
+		t.Fatalf("SearchRepo() error = %v, want nil", err)
+	}
+
+	if len(matches) != 1 {
+		t.Fatalf("SearchRepo() returned %d matches, want 1", len(matches))
+	}
+
+	// Verify the line text was decoded from base64 bytes field
+	// The line should contain "ABC", the Shift-JIS bytes (as raw bytes), and "XYZ"
+	if !strings.Contains(matches[0].LineText, "ABC") {
+		t.Errorf("Match line text = %q, should contain 'ABC'", matches[0].LineText)
+	}
+	if !strings.Contains(matches[0].LineText, "XYZ") {
+		t.Errorf("Match line text = %q, should contain 'XYZ'", matches[0].LineText)
+	}
+
+	// The full decoded bytes should match the original content (minus newline)
+	expectedBytes := []byte{0x41, 0x42, 0x43, 0x83, 0x65, 0x83, 0x58, 0x83, 0x67, 0x58, 0x59, 0x5a}
+	if string(expectedBytes) != matches[0].LineText {
+		t.Errorf("Match line text bytes mismatch.\nGot:  %v\nWant: %v",
+			[]byte(matches[0].LineText), expectedBytes)
+	}
+
+	// Verify that the Shift-JIS part is NOT correctly decoded (i.e., it's garbled)
+	// If it were correctly decoded, it would be "テスト", but since we didn't use --encoding,
+	// the bytes 0x83 0x65 0x83 0x58 0x83 0x67 remain as invalid UTF-8 and appear garbled
+	if strings.Contains(matches[0].LineText, "テスト") {
+		t.Errorf("Match line text should NOT contain correctly decoded 'テスト', got %q", matches[0].LineText)
+	}
+
+	// The middle bytes (Shift-JIS "テスト") should be present as raw invalid UTF-8 bytes
+	// When Go tries to interpret these as UTF-8, they will be replaced with replacement characters
+	// or remain as invalid sequences. We verify this by checking the byte sequence is present.
+	middleBytes := []byte{0x83, 0x65, 0x83, 0x58, 0x83, 0x67}
+	if !strings.Contains(matches[0].LineText, string(middleBytes)) {
+		t.Errorf("Match line text should contain raw Shift-JIS bytes as garbled text")
+	}
+}
