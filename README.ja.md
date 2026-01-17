@@ -109,7 +109,21 @@ owner/repo	src/utils.go:25	// TODO: optimize	https://github.com/owner/repo/blob/
 3. `matched_line`: 一致した行の内容
 4. `github_url`: GitHub 上の該当行 URL
 
-### オプション
+### 全オプション一覧
+
+```
+  -o, --output string           出力先ファイルパス(未指定時は stdout)
+  -i, --ignore-case             大文字小文字を区別しない検索
+  -g, --glob pattern            Glob パターンでファイルをフィルタリング(複数指定可能)
+      --hidden                  隠しファイル・ディレクトリも検索対象に含める
+  -F, --fixed-strings           パターンを正規表現ではなく固定文字列として扱う
+  -m, --max-line-length int     出力する行の最大文字数(0 = 制限なし)。指定した長さを超える行は '...' で切り詰められる
+  -E, --encoding string         ファイルを読み込む際の文字エンコーディング (例: utf-8, shift_jis, euc-jp, iso-2022-jp)。デフォルト: auto (UTF-8/UTF-16 BOM 検出)
+  -h, --help                    ヘルプを表示
+  -v, --version                 バージョン情報を表示
+```
+
+### 使用例
 
 #### 出力先
 
@@ -197,20 +211,6 @@ reporg -F "config.value" /repo --hidden -o config-usage.tsv
 
 # 複数のリポジトリに対して複数条件で検索
 reporg -i "error" /repo1 /repo2 -g "*.go" -g "!vendor/**" --hidden
-```
-
-### 全オプション一覧
-
-```
-  -o, --output string           出力先ファイルパス(未指定時は stdout)
-  -i, --ignore-case             大文字小文字を区別しない検索
-  -g, --glob pattern            Glob パターンでファイルをフィルタリング(複数指定可能)
-      --hidden                  隠しファイル・ディレクトリも検索対象に含める
-  -F, --fixed-strings           パターンを正規表現ではなく固定文字列として扱う
-  -m, --max-line-length int     出力する行の最大文字数(0 = 制限なし)。指定した長さを超える行は '...' で切り詰められる
-  -E, --encoding string         ファイルを読み込む際の文字エンコーディング (例: utf-8, shift_jis, euc-jp, iso-2022-jp)。デフォルト: auto (UTF-8/UTF-16 BOM 検出)
-  -h, --help                    ヘルプを表示
-  -v, --version                 バージョン情報を表示
 ```
 
 ## 制限事項

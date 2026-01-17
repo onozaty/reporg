@@ -109,7 +109,21 @@ owner/repo	src/utils.go:25	// TODO: optimize	https://github.com/owner/repo/blob/
 3. `matched_line`: Content of the matched line
 4. `github_url`: GitHub URL to the corresponding line
 
-### Options
+### All Options
+
+```
+  -o, --output string           Output file path (default: stdout)
+  -i, --ignore-case             Case-insensitive search
+  -g, --glob pattern            Filter files by glob pattern (can be specified multiple times)
+      --hidden                  Include hidden files and directories in search
+  -F, --fixed-strings           Treat pattern as literal string, not regex
+  -m, --max-line-length int     Maximum line length in output (0 = no limit). Lines longer than this will be truncated with '...'
+  -E, --encoding string         Text encoding for reading files (e.g., utf-8, shift_jis, euc-jp, iso-2022-jp). Default: auto (UTF-8/UTF-16 BOM detection)
+  -h, --help                    Show help
+  -v, --version                 Show version information
+```
+
+### Usage Examples
 
 #### Output Destination
 
@@ -197,20 +211,6 @@ reporg -F "config.value" /repo --hidden -o config-usage.tsv
 
 # Search multiple repositories with multiple conditions
 reporg -i "error" /repo1 /repo2 -g "*.go" -g "!vendor/**" --hidden
-```
-
-### All Options
-
-```
-  -o, --output string           Output file path (default: stdout)
-  -i, --ignore-case             Case-insensitive search
-  -g, --glob pattern            Filter files by glob pattern (can be specified multiple times)
-      --hidden                  Include hidden files and directories in search
-  -F, --fixed-strings           Treat pattern as literal string, not regex
-  -m, --max-line-length int     Maximum line length in output (0 = no limit). Lines longer than this will be truncated with '...'
-  -E, --encoding string         Text encoding for reading files (e.g., utf-8, shift_jis, euc-jp, iso-2022-jp). Default: auto (UTF-8/UTF-16 BOM detection)
-  -h, --help                    Show help
-  -v, --version                 Show version information
 ```
 
 ## Limitations
